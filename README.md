@@ -1,30 +1,32 @@
+# TaskFlow — Task Management API
 
-# TaskFlow — Task Management REST API
+TaskFlow is a Python backend project I developed to practise building REST APIs using Flask and MySQL.
 
-TaskFlow is a task management backend built with Python, Flask, and MySQL. It provides REST API endpoints for managing tasks, user registration, and JWT-based authentication.
+The API allows users to register, log in, and manage their own tasks. I also added JWT authentication and automated tests to check that the main features work as expected.
 
 ## Features
 
 - User registration and login
 - Password hashing
-- JWT access-token authentication
-- Create, read, update, and delete tasks (CRUD)
-- User-specific task access
-- Input validation and error responses
-- MySQL database integration with SQLAlchemy
-- Database migrations using Flask-Migrate
+- JWT-based authentication
+- Create, view, update, and delete tasks
+- Each user can access their own tasks
+- Input validation and error handling
+- MySQL database integration
+- Database migrations
 - Automated tests using pytest
 
-## Tech Stack
+## Technologies Used
 
-- **Language:** Python
-- **Backend:** Flask
-- **Database:** MySQL
-- **ORM:** Flask-SQLAlchemy
-- **Migrations:** Flask-Migrate
-- **Authentication:** Flask-JWT-Extended
-- **Testing:** pytest
-- **Database Driver:** PyMySQL
+- Python
+- Flask
+- Flask-SQLAlchemy
+- MySQL
+- Flask-Migrate
+- Flask-JWT-Extended
+- PyMySQL
+- python-dotenv
+- pytest
 
 ## Project Structure
 
@@ -51,65 +53,49 @@ TaskFlow/
 └── README.md
 ```
 
-## Prerequisites
-
-Before running TaskFlow, install:
-
-- Python
-- MySQL Server
-- pip
-
-## Installation
+## Getting Started
 
 ### 1. Clone the repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+git clone https://github.com/pankajkharwar/TaskFlow.git
 cd TaskFlow
 ```
 
-Replace the placeholder with your repository URL after uploading the project to GitHub.
+### 2. Create a virtual environment
 
-### 2. Create and activate a virtual environment
-
-Windows PowerShell:
+On Windows PowerShell:
 
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
 
-### 3. Install dependencies
+### 3. Install the dependencies
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-### 4. Create the database
+### 4. Set up MySQL
 
-Create a MySQL database named `taskflow_db` using MySQL Workbench or the MySQL command line.
+Create a database named `taskflow_db` in MySQL:
 
 ```sql
 CREATE DATABASE taskflow_db;
 ```
 
-Use a MySQL account that has permission to access this database.
-
 ### 5. Configure environment variables
 
 Create a `.env` file in the project root using `.env.example` as a template.
 
-Set the following variables with your own local values:
+Set your own values for:
 
-```dotenv
-SECRET_KEY=your-generated-flask-secret
-JWT_SECRET_KEY=your-generated-jwt-secret
-DATABASE_URL=mysql+pymysql://username:password@localhost:3306/taskflow_db
-```
+- `SECRET_KEY`
+- `JWT_SECRET_KEY`
+- `DATABASE_URL`
 
-Replace the placeholders with your own credentials and securely generated secret keys.
-
-**Security:** Never commit `.env` or real passwords and secret keys to GitHub.
+Use your local MySQL credentials and securely generated secret keys. Do not upload your `.env` file to GitHub.
 
 ### 6. Apply database migrations
 
@@ -123,7 +109,7 @@ flask --app run db upgrade
 python run.py
 ```
 
-The development server runs at:
+The API will be available locally at:
 
 `http://127.0.0.1:5000`
 
@@ -140,8 +126,8 @@ The development server runs at:
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| POST | `/api/auth/register` | Register a user |
-| POST | `/api/auth/login` | Log in and obtain a JWT access token |
+| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/login` | Log in and receive an access token |
 
 ### Tasks
 
@@ -150,67 +136,42 @@ All task endpoints require a valid JWT access token.
 | Method | Endpoint | Purpose |
 |---|---|---|
 | POST | `/api/tasks/` | Create a task |
-| GET | `/api/tasks/` | Retrieve the current user's tasks |
-| GET | `/api/tasks/<task_id>` | Retrieve a task by ID |
+| GET | `/api/tasks/` | View your tasks |
+| GET | `/api/tasks/<task_id>` | View a task by ID |
 | PUT | `/api/tasks/<task_id>` | Update a task |
 | DELETE | `/api/tasks/<task_id>` | Delete a task |
 
-Send the token in the HTTP request header:
+For task requests, send your token in the `Authorization` header:
 
 ```text
 Authorization: Bearer <YOUR_ACCESS_TOKEN>
 ```
 
-### Example: Register a user
+## Running the Tests
 
-Send a POST request to `/api/auth/register` with JSON:
-
-```json
-{
-  "username": "demo_user",
-  "email": "demo@example.com",
-  "password": "use-a-strong-password"
-}
-```
-
-### Example: Create a task
-
-Send a POST request to `/api/tasks/` with a valid token and JSON:
-
-```json
-{
-  "title": "Complete Python project",
-  "description": "Finish the TaskFlow API",
-  "priority": "high"
-}
-```
-
-Supported priorities are `low`, `medium`, and `high`.
-
-Supported task statuses are `pending`, `in_progress`, and `completed`.
-
-## Running Tests
-
-Run the automated test suite from the project root:
+Run the tests from the project root:
 
 ```bash
 python -m pytest tests/test_tasks.py -v
 ```
 
-The test suite covers application health, task CRUD operations, authentication, validation, and user-specific task access.
+The current test suite covers the main API endpoints, registration, login, authentication, input validation, and task ownership.
 
-## Security Notes
+## What I Learned
 
-- Passwords are stored as hashes rather than plain text.
-- Task endpoints require JWT authentication.
-- Task operations are scoped to the authenticated user.
-- Secret keys and database credentials must be kept out of version control.
-- Use a production-ready WSGI server and appropriate production configuration before deployment.
+While working on TaskFlow, I practised:
 
-## Project Status
+- Building REST APIs with Flask
+- Connecting Python applications to MySQL
+- Working with SQLAlchemy models and database migrations
+- Implementing password hashing and JWT authentication
+- Writing automated tests with pytest
+- Managing environment variables and GitHub repositories
 
-TaskFlow is an ongoing backend portfolio project. Features and tests may evolve as development continues.
+## Future Improvements
 
-## Author
+I plan to improve the project further by adding more validation, expanding the test suite, and improving the API documentation.
 
-Developed as a Python backend learning and portfolio project.
+---
+
+**Author:** Pankaj Kharwar
