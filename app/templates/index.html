@@ -1,119 +1,148 @@
- <escape><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#10131c">
-    <title>TaskFlow | Task Management</title>
+    <meta name="theme-color" content="#0b0d17">
+    <meta name="description" content="TaskFlow task management dashboard">
+    <title>TaskFlow — Your Workspace</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
 <body>
-    <div class="app-layout">
-
+    <div class="app-layout" hidden>
         <aside class="sidebar">
-            <a href="/" class="brand">
-                <span class="brand-icon">T</span>
-                <span>TaskFlow</span>
+            <a href="#dashboard" class="brand">
+                <span class="brand-mark">T<span>.</span></span>
+                <span class="brand-name">taskflow</span>
             </a>
 
-            <p class="nav-label">WORKSPACE</p>
+            <div class="workspace-label">WORKSPACE</div>
             <nav class="navigation">
                 <a href="#dashboard" class="nav-link active">
-                    <span>▦</span> Dashboard
+                    <span class="nav-icon">▦</span> Overview
                 </a>
                 <a href="#tasks" class="nav-link">
-                    <span>☷</span> All Tasks
+                    <span class="nav-icon">☷</span> All tasks
                 </a>
             </nav>
 
-            <p class="nav-label">FILTER BY STATUS</p>
-            <nav class="navigation">
+            <div class="workspace-label">TASK STATUS</div>
+            <nav class="navigation status-navigation">
                 <button class="nav-link status-filter" data-status="pending">
-                    <span class="status-dot pending-dot"></span> Pending
+                    <span class="status-dot pending-dot"></span>
+                    <span>Pending</span>
                 </button>
                 <button class="nav-link status-filter" data-status="in_progress">
-                    <span class="status-dot progress-dot"></span> In Progress
+                    <span class="status-dot progress-dot"></span>
+                    <span>In progress</span>
                 </button>
                 <button class="nav-link status-filter" data-status="completed">
-                    <span class="status-dot completed-dot"></span> Completed
+                    <span class="status-dot completed-dot"></span>
+                    <span>Completed</span>
                 </button>
             </nav>
 
+            <div class="sidebar-tip">
+                <div class="tip-icon">✦</div>
+                <strong>Stay in control.</strong>
+                <p>Small steps. Consistent progress.</p>
+            </div>
+
             <div class="sidebar-bottom">
-                <div class="profile-avatar">U</div>
+                <div class="avatar" id="sidebar-avatar">U</div>
                 <div class="profile-info">
-                    <strong id="sidebar-username">Your Account</strong>
-                    <span>TaskFlow Member</span>
+                    <strong id="sidebar-username">Your account</strong>
+                    <span>Personal workspace</span>
                 </div>
-                <button id="logout-btn" class="icon-button" type="button"
-                        title="Log out" aria-label="Log out">↪</button>
+                <button id="logout-btn" class="icon-button"
+                        type="button" title="Log out" aria-label="Log out">↗</button>
             </div>
         </aside>
 
         <main class="main-content" id="dashboard">
             <header class="topbar">
+                <div class="breadcrumb">
+                    <span>Workspace</span><span class="breadcrumb-slash">/</span>
+                    <strong>Overview</strong>
+                </div>
+                <div class="topbar-right">
+                    <span class="live-indicator"></span>
+                    <span class="topbar-label">Personal workspace</span>
+                    <div class="topbar-avatar" id="topbar-avatar">U</div>
+                </div>
+            </header>
+
+            <section class="welcome-section">
                 <div>
-                    <p class="eyebrow">YOUR WORKSPACE</p>
-                    <h1>Dashboard</h1>
-                    <p class="muted">Plan your work. Track your progress.</p>
+                    <p class="eyebrow"><span class="eyebrow-line"></span> YOUR WORKSPACE</p>
+                    <h1>Make room for <span class="gradient-text">great work.</span></h1>
+                    <p class="welcome-subtitle">
+                        Keep your priorities clear and your momentum going.
+                    </p>
                 </div>
                 <button id="open-task-modal" class="primary-button" type="button">
-                    <span>＋</span> Add Task
+                    <span class="plus-icon">＋</span> Create task
                 </button>
-            </header>
+            </section>
 
             <section class="stats-grid" aria-label="Task statistics">
                 <article class="stat-card">
-                    <span class="stat-label">Total Tasks</span>
-                    <div class="stat-bottom">
-                        <strong id="total-count">0</strong>
-                        <span class="stat-icon purple">▤</span>
+                    <div class="stat-top">
+                        <span class="stat-label">Total tasks</span>
+                        <span class="stat-icon icon-purple">▤</span>
                     </div>
-                    <span class="stat-note">All your tasks</span>
+                    <strong class="stat-number" id="total-count">0</strong>
+                    <span class="stat-caption">Across your workspace</span>
+                    <div class="stat-accent accent-purple"></div>
                 </article>
 
                 <article class="stat-card">
-                    <span class="stat-label">Pending</span>
-                    <div class="stat-bottom">
-                        <strong id="pending-count">0</strong>
-                        <span class="stat-icon orange">◷</span>
+                    <div class="stat-top">
+                        <span class="stat-label">Pending</span>
+                        <span class="stat-icon icon-orange">◷</span>
                     </div>
-                    <span class="stat-note">Waiting to start</span>
+                    <strong class="stat-number" id="pending-count">0</strong>
+                    <span class="stat-caption">Ready when you are</span>
+                    <div class="stat-accent accent-orange"></div>
                 </article>
 
                 <article class="stat-card">
-                    <span class="stat-label">In Progress</span>
-                    <div class="stat-bottom">
-                        <strong id="progress-count">0</strong>
-                        <span class="stat-icon blue">↗</span>
+                    <div class="stat-top">
+                        <span class="stat-label">In progress</span>
+                        <span class="stat-icon icon-blue">↗</span>
                     </div>
-                    <span class="stat-note">Currently working on</span>
+                    <strong class="stat-number" id="progress-count">0</strong>
+                    <span class="stat-caption">Currently underway</span>
+                    <div class="stat-accent accent-blue"></div>
                 </article>
 
                 <article class="stat-card">
-                    <span class="stat-label">Completed</span>
-                    <div class="stat-bottom">
-                        <strong id="completed-count">0</strong>
-                        <span class="stat-icon green">✓</span>
+                    <div class="stat-top">
+                        <span class="stat-label">Completed</span>
+                        <span class="stat-icon icon-green">✓</span>
                     </div>
-                    <span class="stat-note">Successfully finished</span>
+                    <strong class="stat-number" id="completed-count">0</strong>
+                    <span class="stat-caption">Progress made</span>
+                    <div class="stat-accent accent-green"></div>
                 </article>
             </section>
 
             <section class="tasks-section" id="tasks">
                 <div class="section-heading">
                     <div>
-                        <h2>My Tasks</h2>
-                        <p class="muted">Manage and organize your work.</p>
+                        <p class="eyebrow">YOUR WORK, ORGANIZED</p>
+                        <h2>My tasks <span class="task-count" id="task-heading-count">0</span></h2>
+                        <p class="section-subtitle">Everything you need to move forward.</p>
                     </div>
                 </div>
 
                 <div class="task-toolbar">
                     <label class="search-box">
-                        <span>⌕</span>
+                        <span class="search-icon">⌕</span>
                         <input type="search" id="task-search"
-                               placeholder="Search tasks..." aria-label="Search tasks">
+                               placeholder="Search your tasks..." aria-label="Search tasks">
+                        <kbd>/</kbd>
                     </label>
 
                     <label class="filter-control">
@@ -121,7 +150,7 @@
                         <select id="status-filter">
                             <option value="all">All statuses</option>
                             <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
+                            <option value="in_progress">In progress</option>
                             <option value="completed">Completed</option>
                         </select>
                     </label>
@@ -141,7 +170,7 @@
                      role="status" aria-live="polite"></div>
 
                 <div class="task-list-header">
-                    <span>Task</span>
+                    <span>Task details</span>
                     <span>Priority</span>
                     <span>Status</span>
                     <span>Actions</span>
@@ -149,16 +178,16 @@
 
                 <div id="task-list" class="task-list">
                     <div class="empty-state">
-                        <span class="empty-icon">☷</span>
-                        <h3>Your tasks will appear here</h3>
-                        <p>Create a task to get started with TaskFlow.</p>
+                        <span class="empty-illustration">✦</span>
+                        <h3>Your next win starts here.</h3>
+                        <p>Create your first task to get started.</p>
                     </div>
                 </div>
             </section>
 
             <footer class="page-footer">
-                <span>TaskFlow</span>
-                <span>Stay organized. Keep moving forward.</span>
+                <span><span class="footer-mark">T.</span> TaskFlow</span>
+                <span>Built for clarity. Designed for progress.</span>
             </footer>
         </main>
     </div>
@@ -170,25 +199,23 @@
                 <div>
                     <p class="eyebrow">TASK DETAILS</p>
                     <h2 id="modal-title">Create a task</h2>
+                    <p class="section-subtitle">Give your next task some direction.</p>
                 </div>
                 <button type="button" id="close-task-modal"
                         class="icon-button" aria-label="Close dialog">✕</button>
             </div>
 
             <form id="task-form">
-                <input type="hidden" id="task-id">
-
                 <label class="form-field">
-                    <span>Task title *</span>
+                    <span>Task title <b>*</b></span>
                     <input type="text" id="task-title" maxlength="150"
-                           placeholder="e.g. Build the API dashboard"
-                           required>
+                           placeholder="What needs to get done?" required>
                 </label>
 
                 <label class="form-field">
-                    <span>Description</span>
+                    <span>Description <small>Optional</small></span>
                     <textarea id="task-description" rows="3"
-                              placeholder="Add details about this task..."></textarea>
+                              placeholder="Add a few details..."></textarea>
                 </label>
 
                 <div class="form-row">
@@ -205,23 +232,24 @@
                         <span>Status</span>
                         <select id="task-status">
                             <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
+                            <option value="in_progress">In progress</option>
                             <option value="completed">Completed</option>
                         </select>
                     </label>
                 </div>
 
-                <div class="form-error" id="form-error"
-                     role="alert"></div>
+                <div class="form-error" id="form-error" role="alert"></div>
 
                 <div class="modal-actions">
-                    <button type="button" id="cancel-task"
-                            class="secondary-button">Cancel</button>
-                    <button type="submit" id="save-task"
-                            class="primary-button">Save Task</button>
+                    <button type="button" id="cancel-task" class="secondary-button">
+                        Cancel
+                    </button>
+                    <button type="submit" id="save-task" class="primary-button">
+                        Save task <span>→</span>
+                    </button>
                 </div>
             </form>
         </section>
     </div>
 </body>
-</html></escape>
+</html>

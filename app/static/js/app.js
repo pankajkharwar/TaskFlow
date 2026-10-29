@@ -1,3 +1,5 @@
+"use strict";
+
 const API_BASE = "/api";
 const TOKEN_KEY = "taskflow_access_token";
 const USER_KEY = "taskflow_username";
@@ -5,15 +7,18 @@ const USER_KEY = "taskflow_username";
 let tasks = [];
 let currentStatusFilter = "all";
 let isEditing = false;
+let authMode = "login";
 
 const $ = (selector) => document.querySelector(selector);
 
-const elements = {
+const el = {
+    layout: $(".app-layout"),
     taskList: $("#task-list"),
     total: $("#total-count"),
     pending: $("#pending-count"),
     progress: $("#progress-count"),
     completed: $("#completed-count"),
+    headingCount: $("#task-heading-count"),
     search: $("#task-search"),
     statusFilter: $("#status-filter"),
     priorityFilter: $("#priority-filter"),
@@ -29,7 +34,10 @@ const elements = {
     save: $("#save-task"),
 };
 
-// Safely escape API data before inserting it into HTML.
+function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY);
+}
+
 function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, (char) => ({
         "&": "&amp;",
@@ -40,29 +48,25 @@ function escapeHTML(value) {
     })[char]);
 }
 
-function getToken() {
-    return sessionStorage.getItem(TOKEN_KEY);
-}
-
 function showMessage(message, isError = false) {
-    elements.message.textContent = message;
-    elements.message.style.color = isError ? "#ff7885" : "#43d9a3";
+    el.message.textContent = message;
+    el.message.classList.toggle("message-error", isError);
 }
 
 function clearMessage() {
-    elements.message.textContent = "";
+    el.message.textContent = "";
+    el.message.classList.remove("message-error");
 }
 
 async function apiRequest(path, options = {}) {
-    const headers = {
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
-        ...(options.headers || {}),
-    };
+    const headers = { ...(options.headers || {}) };
 
-    const token = getToken();
+    if (options.body) {
+        headers["Content-Type"] = "application/json";
+    }
 
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
+    if (getToken()) {
+        headers.Authorization = `Bearer ${getToken()}`;
     }
 
     const response = await fetch(`${API_BASE}${path}`, {
@@ -80,102 +84,161 @@ async function apiRequest(path, options = {}) {
             logout("Your session has expired. Please log in again.");
         }
 
-        throw new Error(data.error || data.message || `Request failed (${response.status})`);
+        throw new Error(
+            data.error || data.message || `Request failed (${response.status})`
+        );
     }
 
     return data;
 }
 
-// ---------- Authentication UI ----------
+// ---------------- Authentication ----------------
 
-function showAuthScreen() {
-    const oldScreen = $("#auth-screen");
-    if (oldScreen) oldScreen.remove();
+function showAuthScreen(message = "", isSuccess = false) {
+    el.layout.hidden = true;
+    el.modal.hidden = true;
 
-    $(".app-layout").hidden = true;
-    $("#task-modal").hidden = true;
+    let screen = $("#auth-screen");
 
-    const screen = document.createElement("main");
-    screen.id = "auth-screen";
+    if (!screen) {
+        screen = document.createElement("main");
+        screen.id = "auth-screen";
 
-    screen.innerHTML = `
-        <section class="auth-card">
-            <a class="brand auth-brand" href="/dashboard">
-                <span class="brand-icon">T</span>
-                <span>TaskFlow</span>
-            </a>
+        screen.innerHTML = `
+            <section class="auth-visual">
+                <a href="/dashboard" class="brand">
+                    <span class="brand-mark">T<span>.</span></span>
+                    <span class="brand-name">taskflow</span>
+                </a>
 
-            <p class="eyebrow">YOUR PERSONAL WORKSPACE</p>
-            <h1 id="auth-heading">Welcome back</h1>
-            <p class="auth-subtitle" id="auth-subtitle">
-                Log in to manage your tasks.
-            </p>
+                <div class="auth-visual-content">
+                    <p class="eyebrow">
+                        <span class="eyebrow-line"></span>
+                        YOUR WORKSPACE, REIMAGINED
+                    </p>
 
-            <div class="auth-tabs">
-                <button type="button" id="login-tab" class="auth-tab active">
-                    Login
-                </button>
-                <button type="button" id="register-tab" class="auth-tab">
-                    Register
-                </button>
-            </div>
+                    <h2>Turn your plans into <span>progress.</span></h2>
 
-            <form id="auth-form">
-                <label class="form-field" id="username-field" hidden>
-                    <span>Username</span>
-                    <input id="auth-username" type="text"
-                           maxlength="80" autocomplete="username">
-                </label>
+                    <p>
+                        One place for your priorities, your tasks, and the
+                        work that moves you forward. Simple, focused, yours.
+                    </p>
 
-                <label class="form-field">
-                    <span>Email</span>
-                    <input id="auth-email" type="email"
-                           maxlength="120" autocomplete="email" required>
-                </label>
+                    <div class="auth-benefits">
+                        <div class="auth-benefit">
+                            <span class="benefit-check">✓</span>
+                            Organize tasks around what matters
+                        </div>
+                        <div class="auth-benefit">
+                            <span class="benefit-check">✓</span>
+                            Track progress at a glance
+                        </div>
+                        <div class="auth-benefit">
+                            <span class="benefit-check">✓</span>
+                            Keep your workspace personal
+                        </div>
+                    </div>
+                </div>
 
-                <label class="form-field">
-                    <span>Password</span>
-                    <input id="auth-password" type="password"
-                           minlength="8" autocomplete="current-password" required>
-                </label>
+                <footer class="auth-visual-footer">
+                    TASKFLOW · BUILT FOR CLARITY
+                </footer>
+            </section>
 
-                <p id="auth-error" class="form-error" role="alert"></p>
+            <section class="auth-panel">
+                <div class="auth-card">
+                    <a href="/dashboard" class="brand auth-mobile-brand">
+                        <span class="brand-mark">T<span>.</span></span>
+                        <span class="brand-name">taskflow</span>
+                    </a>
 
-                <button id="auth-submit" class="primary-button auth-submit"
-                        type="submit">Log In</button>
-            </form>
+                    <div class="auth-heading">
+                        <p class="eyebrow">WELCOME TO TASKFLOW</p>
+                        <h1 id="auth-heading">Welcome back.</h1>
+                        <p id="auth-subtitle">Log in to your workspace.</p>
+                    </div>
 
-            <p class="auth-footer">
-                Your tasks are private to your account.
-            </p>
-        </section>
-    `;
+                    <div class="auth-tabs">
+                        <button type="button" id="login-tab"
+                                class="auth-tab active">Log in</button>
+                        <button type="button" id="register-tab"
+                                class="auth-tab">Create account</button>
+                    </div>
 
-    document.body.appendChild(screen);
+                    <form id="auth-form">
+                        <label class="form-field" id="username-field" hidden>
+                            <span>Username</span>
+                            <input id="auth-username" type="text"
+                                   maxlength="80" autocomplete="username"
+                                   placeholder="Choose a username">
+                        </label>
 
-    $("#login-tab").addEventListener("click", () => setAuthMode("login"));
-    $("#register-tab").addEventListener("click", () => setAuthMode("register"));
+                        <label class="form-field">
+                            <span>Email address</span>
+                            <input id="auth-email" type="email"
+                                   maxlength="120" autocomplete="email"
+                                   placeholder="you@example.com" required>
+                        </label>
 
-    $("#auth-form").addEventListener("submit", handleAuthSubmit);
+                        <label class="form-field">
+                            <span>Password</span>
+                            <input id="auth-password" type="password"
+                                   minlength="8" autocomplete="current-password"
+                                   placeholder="Enter your password" required>
+                        </label>
 
-    setAuthMode("login");
+                        <p id="auth-error" class="auth-error"
+                           role="alert" aria-live="polite"></p>
+
+                        <button id="auth-submit"
+                                class="primary-button auth-submit"
+                                type="submit">Log in <span>→</span></button>
+                    </form>
+
+                    <p class="auth-footer">
+                        Your workspace. Your priorities. Your progress.
+                    </p>
+                </div>
+            </section>
+        `;
+
+        document.body.appendChild(screen);
+
+        $("#login-tab").addEventListener("click", () => setAuthMode("login"));
+        $("#register-tab").addEventListener("click", () => setAuthMode("register"));
+        $("#auth-form").addEventListener("submit", handleAuthSubmit);
+    }
+
+    setAuthMode(authMode);
+
+    if (message) {
+        $("#auth-error").textContent = message;
+        $("#auth-error").classList.toggle("success", isSuccess);
+    }
+
+    $("#auth-email").focus();
 }
 
 function setAuthMode(mode) {
+    authMode = mode;
+
     const isRegister = mode === "register";
 
     $("#username-field").hidden = !isRegister;
     $("#auth-username").required = isRegister;
 
     $("#auth-heading").textContent = isRegister
-        ? "Create your account"
-        : "Welcome back";
+        ? "Create your account."
+        : "Welcome back.";
 
     $("#auth-subtitle").textContent = isRegister
-        ? "Create an account to start managing tasks."
-        : "Log in to manage your tasks.";
+        ? "Set up your workspace in a few steps."
+        : "Log in to your workspace.";
 
-    $("#auth-submit").textContent = isRegister ? "Create Account" : "Log In";
+    $("#auth-submit").innerHTML = isRegister
+        ? 'Create account <span>→</span>'
+        : 'Log in <span>→</span>';
+
     $("#auth-password").autocomplete = isRegister
         ? "new-password"
         : "current-password";
@@ -184,72 +247,76 @@ function setAuthMode(mode) {
     $("#register-tab").classList.toggle("active", isRegister);
 
     $("#auth-error").textContent = "";
-    $("#auth-form").dataset.mode = mode;
+    $("#auth-error").classList.remove("success");
 }
 
 async function handleAuthSubmit(event) {
     event.preventDefault();
 
-    const mode = $("#auth-form").dataset.mode;
+    const username = $("#auth-username").value.trim();
     const email = $("#auth-email").value.trim();
     const password = $("#auth-password").value;
-    const submitButton = $("#auth-submit");
-    const errorElement = $("#auth-error");
+    const button = $("#auth-submit");
+    const error = $("#auth-error");
 
-    const payload = { email, password };
-
-    if (mode === "register") {
-        payload.username = $("#auth-username").value.trim();
-
-        if (!payload.username) {
-            errorElement.textContent = "Username is required.";
-            return;
-        }
-
-        if (password.length < 8) {
-            errorElement.textContent = "Password must be at least 8 characters.";
-            return;
-        }
+    if (authMode === "register" && !username) {
+        error.textContent = "Please enter a username.";
+        return;
     }
 
-    submitButton.disabled = true;
-    errorElement.textContent = "";
+    if (authMode === "register" && password.length < 8) {
+        error.textContent = "Password must be at least 8 characters.";
+        return;
+    }
+
+    button.disabled = true;
+    error.textContent = "";
+    error.classList.remove("success");
 
     try {
-        if (mode === "register") {
+        if (authMode === "register") {
             await apiRequest("/auth/register", {
                 method: "POST",
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ username, email, password }),
             });
 
-            // Registration does not return a token.
-            // Switch to login rather than pretending the user is logged in.
-            setAuthMode("login");
             $("#auth-email").value = email;
-            $("#auth-error").textContent =
-                "Account created successfully. Please log in.";
-            $("#auth-error").style.color = "#43d9a3";
+            $("#auth-password").value = "";
+            setAuthMode("login");
+
+            error.textContent = "Account created! Please log in.";
+            error.classList.add("success");
             return;
         }
 
         const data = await apiRequest("/auth/login", {
             method: "POST",
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ email, password }),
         });
 
         sessionStorage.setItem(TOKEN_KEY, data.access_token);
         sessionStorage.setItem(USER_KEY, data.user.username);
 
         await showDashboard();
-    } catch (error) {
-        errorElement.style.color = "#ff7885";
-        errorElement.textContent = error.message;
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("success");
     } finally {
-        submitButton.disabled = false;
+        button.disabled = false;
     }
 }
 
-// ---------- Dashboard ----------
+function logout(message = "") {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+
+    tasks = [];
+    currentStatusFilter = "all";
+
+    showAuthScreen(message);
+}
+
+// ---------------- Dashboard ----------------
 
 async function showDashboard() {
     if (!getToken()) {
@@ -257,40 +324,31 @@ async function showDashboard() {
         return;
     }
 
-    const authScreen = $("#auth-screen");
-    if (authScreen) authScreen.remove();
+    const screen = $("#auth-screen");
+    if (screen) screen.remove();
 
-    $(".app-layout").hidden = false;
+    el.layout.hidden = false;
 
-    $("#sidebar-username").textContent =
-        sessionStorage.getItem(USER_KEY) || "TaskFlow Member";
+    const username = sessionStorage.getItem(USER_KEY) || "My workspace";
+
+    $("#sidebar-username").textContent = username;
+    $("#sidebar-avatar").textContent = username.charAt(0).toUpperCase();
+    $("#topbar-avatar").textContent = username.charAt(0).toUpperCase();
 
     clearMessage();
 
     try {
         await loadTasks();
-    } catch (error) {
-        showMessage(error.message, true);
+    } catch (err) {
+        showMessage(err.message, true);
     }
 }
 
-function logout(message = "You have been logged out.") {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
-
-    tasks = [];
-    showAuthScreen();
-
-    if (message) {
-        $("#auth-error").textContent = message;
-    }
-}
-
-// ---------- Task operations ----------
+// ---------------- Task API operations ----------------
 
 async function loadTasks() {
-    const result = await apiRequest("/tasks/");
-    tasks = Array.isArray(result) ? result : [];
+    const data = await apiRequest("/tasks/");
+    tasks = Array.isArray(data) ? data : [];
 
     renderTasks();
     updateStats();
@@ -299,26 +357,26 @@ async function loadTasks() {
 async function saveTask(event) {
     event.preventDefault();
 
-    const title = elements.title.value.trim();
-    const description = elements.description.value.trim();
-    const priority = elements.priority.value;
-    const status = elements.status.value;
-    const taskId = elements.taskId.value;
-
-    elements.formError.textContent = "";
+    const title = el.title.value.trim();
 
     if (!title) {
-        elements.formError.textContent = "Task title is required.";
+        el.formError.textContent = "Task title is required.";
         return;
     }
 
+    const description = el.description.value.trim();
+    const priority = el.priority.value;
+    const status = el.status.value;
+    const taskId = el.taskId.value;
+
+    const editing = isEditing;
     const payload = { title, description, priority };
 
-    elements.save.disabled = true;
+    el.formError.textContent = "";
+    el.save.disabled = true;
 
     try {
-        if (isEditing && taskId) {
-            // Update an existing task.
+        if (editing && taskId) {
             payload.status = status;
 
             await apiRequest(`/tasks/${taskId}`, {
@@ -326,13 +384,12 @@ async function saveTask(event) {
                 body: JSON.stringify(payload),
             });
         } else {
-            // The current backend creates new tasks as pending.
+            // Backend creates new tasks with pending status.
             const created = await apiRequest("/tasks/", {
                 method: "POST",
                 body: JSON.stringify(payload),
             });
 
-            // If a different initial status was selected, update it separately.
             if (status !== "pending") {
                 await apiRequest(`/tasks/${created.id}`, {
                     method: "PUT",
@@ -343,11 +400,11 @@ async function saveTask(event) {
 
         closeTaskModal();
         await loadTasks();
-        showMessage(isEditing ? "Task updated successfully." : "Task created successfully.");
-    } catch (error) {
-        elements.formError.textContent = error.message;
+        showMessage(editing ? "Task updated successfully." : "Task created successfully.");
+    } catch (err) {
+        el.formError.textContent = err.message;
     } finally {
-        elements.save.disabled = false;
+        el.save.disabled = false;
     }
 }
 
@@ -361,8 +418,8 @@ async function deleteTask(taskId) {
         await apiRequest(`/tasks/${taskId}`, { method: "DELETE" });
         await loadTasks();
         showMessage("Task deleted successfully.");
-    } catch (error) {
-        showMessage(error.message, true);
+    } catch (err) {
+        showMessage(err.message, true);
     }
 }
 
@@ -375,154 +432,152 @@ async function changeTaskStatus(taskId, status) {
 
         await loadTasks();
         showMessage("Task status updated.");
-    } catch (error) {
-        showMessage(error.message, true);
-        await loadTasks();
+    } catch (err) {
+        showMessage(err.message, true);
+        await loadTasks().catch(() => {});
     }
 }
 
-// ---------- Rendering and filters ----------
+// ---------------- Task rendering ----------------
 
 function renderTasks() {
-    const query = elements.search.value.trim().toLowerCase();
-    const status = elements.statusFilter.value;
-    const priority = elements.priorityFilter.value;
+    const query = el.search.value.trim().toLowerCase();
+    const status = el.statusFilter.value;
+    const priority = el.priorityFilter.value;
 
     const filtered = tasks.filter((task) => {
-        const matchesSearch =
-            String(task.title || "").toLowerCase().includes(query) ||
-            String(task.description || "").toLowerCase().includes(query);
+        const title = String(task.title || "").toLowerCase();
+        const description = String(task.description || "").toLowerCase();
 
-        const matchesStatus = status === "all" || task.status === status;
-        const matchesPriority = priority === "all" || task.priority === priority;
-
-        const matchesSidebar =
-            currentStatusFilter === "all" ||
-            task.status === currentStatusFilter;
-
-        return matchesSearch && matchesStatus && matchesPriority && matchesSidebar;
+        return (
+            (title.includes(query) || description.includes(query)) &&
+            (status === "all" || task.status === status) &&
+            (priority === "all" || task.priority === priority) &&
+            (currentStatusFilter === "all" ||
+                task.status === currentStatusFilter)
+        );
     });
 
+    el.headingCount.textContent = filtered.length;
+
     if (!filtered.length) {
-        elements.taskList.innerHTML = `
+        el.taskList.innerHTML = `
             <div class="empty-state">
-                <span class="empty-icon">☷</span>
-                <h3>${tasks.length ? "No matching tasks" : "Your tasks will appear here"}</h3>
+                <span class="empty-illustration">✦</span>
+                <h3>${tasks.length ? "No matching tasks." : "Your next win starts here."}</h3>
                 <p>${tasks.length
-                    ? "Try changing your search or filters."
-                    : "Create a task to get started with TaskFlow."}</p>
+                    ? "Try adjusting your search or filters."
+                    : "Create your first task to get started."}</p>
             </div>
         `;
         return;
     }
 
-    elements.taskList.innerHTML = filtered.map((task) => {
-        const statusLabels = {
-            pending: "Pending",
-            in_progress: "In Progress",
-            completed: "Completed",
-        };
+    const statusLabels = {
+        pending: "Pending",
+        in_progress: "In progress",
+        completed: "Completed",
+    };
 
-        const priorityLabels = {
-            low: "Low",
-            medium: "Medium",
-            high: "High",
-        };
+    const priorityLabels = {
+        low: "Low",
+        medium: "Medium",
+        high: "High",
+    };
 
-        return `
-            <article class="task-row">
-                <div class="task-main">
-                    <div class="task-title">${escapeHTML(task.title)}</div>
-                    ${task.description
-                        ? `<div class="task-description">${escapeHTML(task.description)}</div>`
-                        : ""}
-                </div>
+    el.taskList.innerHTML = filtered.map((task) => `
+        <article class="task-row">
+            <div class="task-main">
+                <div class="task-title">${escapeHTML(task.title)}</div>
+                ${task.description
+                    ? `<div class="task-description">${escapeHTML(task.description)}</div>`
+                    : ""}
+            </div>
 
-                <div>
-                    <span class="priority-badge priority-${escapeHTML(task.priority)}">
-                        ${escapeHTML(priorityLabels[task.priority] || task.priority)}
-                    </span>
-                </div>
+            <div>
+                <span class="priority-badge priority-${escapeHTML(task.priority)}">
+                    ${escapeHTML(priorityLabels[task.priority] || task.priority)}
+                </span>
+            </div>
 
-                <div>
-                    <select class="task-status-select status-badge status-${escapeHTML(task.status)}"
-                            data-status-id="${escapeHTML(task.id)}"
-                            aria-label="Change status for ${escapeHTML(task.title)}">
-                        ${Object.entries(statusLabels).map(([value, label]) => `
-                            <option value="${value}" ${task.status === value ? "selected" : ""}>
-                                ${label}
-                            </option>
-                        `).join("")}
-                    </select>
-                </div>
+            <div>
+                <select class="task-status-select status-${escapeHTML(task.status)}"
+                        data-status-id="${escapeHTML(task.id)}"
+                        aria-label="Change status for ${escapeHTML(task.title)}">
+                    ${Object.entries(statusLabels).map(([value, label]) => `
+                        <option value="${value}" ${task.status === value ? "selected" : ""}>
+                            ${label}
+                        </option>
+                    `).join("")}
+                </select>
+            </div>
 
-                <div class="task-actions">
-                    <button type="button" data-edit-id="${escapeHTML(task.id)}">Edit</button>
-                    <button type="button" class="delete-task"
-                            data-delete-id="${escapeHTML(task.id)}">Delete</button>
-                </div>
-            </article>
-        `;
-    }).join("");
+            <div class="task-actions">
+                <button type="button" data-edit-id="${escapeHTML(task.id)}">Edit</button>
+                <button type="button" class="delete-task"
+                        data-delete-id="${escapeHTML(task.id)}">Delete</button>
+            </div>
+        </article>
+    `).join("");
 }
 
 function updateStats() {
-    elements.total.textContent = tasks.length;
-    elements.pending.textContent =
+    el.total.textContent = tasks.length;
+    el.pending.textContent =
         tasks.filter((task) => task.status === "pending").length;
-    elements.progress.textContent =
+    el.progress.textContent =
         tasks.filter((task) => task.status === "in_progress").length;
-    elements.completed.textContent =
+    el.completed.textContent =
         tasks.filter((task) => task.status === "completed").length;
 }
 
-// ---------- Modal ----------
+// ---------------- Task modal ----------------
 
 function openTaskModal(task = null) {
     isEditing = Boolean(task);
 
-    elements.form.reset();
-    elements.formError.textContent = "";
-    elements.taskId.value = task ? task.id : "";
+    el.form.reset();
+    el.formError.textContent = "";
+    el.taskId.value = task ? task.id : "";
 
     $("#modal-title").textContent = task ? "Edit task" : "Create a task";
-    elements.save.textContent = task ? "Update Task" : "Save Task";
+    el.save.innerHTML = task ? "Update task <span>→</span>" : "Save task <span>→</span>";
 
     if (task) {
-        elements.title.value = task.title || "";
-        elements.description.value = task.description || "";
-        elements.priority.value = task.priority || "medium";
-        elements.status.value = task.status || "pending";
+        el.title.value = task.title || "";
+        el.description.value = task.description || "";
+        el.priority.value = task.priority || "medium";
+        el.status.value = task.status || "pending";
     } else {
-        elements.priority.value = "medium";
-        elements.status.value = "pending";
+        el.priority.value = "medium";
+        el.status.value = "pending";
     }
 
-    elements.modal.hidden = false;
-    elements.title.focus();
+    el.modal.hidden = false;
+    el.title.focus();
 }
 
 function closeTaskModal() {
-    elements.modal.hidden = true;
-    elements.form.reset();
-    elements.formError.textContent = "";
+    el.modal.hidden = true;
+    el.form.reset();
+    el.formError.textContent = "";
     isEditing = false;
 }
 
-// ---------- Event listeners ----------
+// ---------------- Event listeners ----------------
 
 $("#open-task-modal").addEventListener("click", () => openTaskModal());
 $("#close-task-modal").addEventListener("click", closeTaskModal);
 $("#cancel-task").addEventListener("click", closeTaskModal);
-elements.form.addEventListener("submit", saveTask);
+el.form.addEventListener("submit", saveTask);
 
 $("#logout-btn").addEventListener("click", () => logout());
 
-elements.search.addEventListener("input", renderTasks);
-elements.statusFilter.addEventListener("change", renderTasks);
-elements.priorityFilter.addEventListener("change", renderTasks);
+el.search.addEventListener("input", renderTasks);
+el.statusFilter.addEventListener("change", renderTasks);
+el.priorityFilter.addEventListener("change", renderTasks);
 
-elements.taskList.addEventListener("click", (event) => {
+el.taskList.addEventListener("click", (event) => {
     const editButton = event.target.closest("[data-edit-id]");
     const deleteButton = event.target.closest("[data-delete-id]");
 
@@ -530,6 +585,7 @@ elements.taskList.addEventListener("click", (event) => {
         const task = tasks.find(
             (item) => String(item.id) === editButton.dataset.editId
         );
+
         if (task) openTaskModal(task);
     }
 
@@ -538,28 +594,38 @@ elements.taskList.addEventListener("click", (event) => {
     }
 });
 
-elements.taskList.addEventListener("change", (event) => {
+el.taskList.addEventListener("change", (event) => {
     const select = event.target.closest("[data-status-id]");
+
     if (select) {
         changeTaskStatus(select.dataset.statusId, select.value);
     }
 });
 
-$("#task-modal").addEventListener("click", (event) => {
-    if (event.target === elements.modal) closeTaskModal();
+el.modal.addEventListener("click", (event) => {
+    if (event.target === el.modal) closeTaskModal();
 });
 
 document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !elements.modal.hidden) {
+    if (event.key === "Escape" && !el.modal.hidden) {
         closeTaskModal();
+    }
+
+    if (
+        event.key === "/" &&
+        !el.layout.hidden &&
+        !el.modal.hidden &&
+        !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)
+    ) {
+        event.preventDefault();
+        el.search.focus();
     }
 });
 
 document.querySelectorAll(".status-filter").forEach((button) => {
     button.addEventListener("click", () => {
         currentStatusFilter = button.dataset.status;
-
-        elements.statusFilter.value = currentStatusFilter;
+        el.statusFilter.value = currentStatusFilter;
 
         document.querySelectorAll(".status-filter").forEach((item) => {
             item.classList.toggle("active", item === button);
@@ -571,87 +637,30 @@ document.querySelectorAll(".status-filter").forEach((button) => {
 
 document.querySelector('a[href="#dashboard"]').addEventListener("click", () => {
     currentStatusFilter = "all";
-    elements.statusFilter.value = "all";
+    el.statusFilter.value = "all";
+
+    document.querySelectorAll(".status-filter").forEach((item) => {
+        item.classList.remove("active");
+    });
+
+    document.querySelector('.nav-link[href="#dashboard"]').classList.add("active");
     renderTasks();
 });
 
 document.querySelector('a[href="#tasks"]').addEventListener("click", () => {
     currentStatusFilter = "all";
-    elements.statusFilter.value = "all";
+    el.statusFilter.value = "all";
+
+    document.querySelectorAll(".status-filter").forEach((item) => {
+        item.classList.remove("active");
+    });
+
+    document.querySelector('.nav-link[href="#dashboard"]').classList.remove("active");
+    document.querySelector('.nav-link[href="#tasks"]').classList.add("active");
     renderTasks();
 });
 
-// ---------- Auth screen styles ----------
-
-const authStyles = document.createElement("style");
-authStyles.textContent = `
-    #auth-screen {
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 24px;
-        background: var(--bg, #0c0f17);
-    }
-
-    .auth-card {
-        width: min(100%, 430px);
-        padding: 32px;
-        background: var(--panel, #141925);
-        border: 1px solid var(--border, #252d3d);
-        border-radius: 16px;
-    }
-
-    .auth-brand { margin: 0 0 30px; }
-
-    .auth-card h1 {
-        font-size: 26px;
-        margin-bottom: 8px;
-    }
-
-    .auth-subtitle, .auth-footer {
-        color: var(--muted, #929db0);
-        font-size: 12px;
-    }
-
-    .auth-tabs {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-        padding: 5px;
-        margin: 24px 0;
-        background: #0e131d;
-        border-radius: 9px;
-    }
-
-    .auth-tab {
-        min-height: 38px;
-        border: 0;
-        border-radius: 7px;
-        color: var(--muted, #929db0);
-        background: transparent;
-    }
-
-    .auth-tab.active {
-        color: white;
-        background: #25213f;
-    }
-
-    .auth-submit { width: 100%; }
-
-    .auth-footer {
-        text-align: center;
-        margin: 20px 0 0;
-    }
-
-    .task-status-select {
-        font: inherit;
-        cursor: pointer;
-        border: 0;
-    }
-`;
-document.head.appendChild(authStyles);
-
-// Start the correct screen.
+// Start with the appropriate screen.
 if (getToken()) {
     showDashboard();
 } else {
