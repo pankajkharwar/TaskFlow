@@ -7,6 +7,7 @@ from app.models.task import Task
 from app.routes.tasks import tasks_bp
 from app.models.user import User
 from app.routes.auth import auth_bp
+from flask import Flask, render_template
 
 
 def create_app(test_config=None):
@@ -39,6 +40,9 @@ def create_app(test_config=None):
                 "status": "error"
             }, 500
 
+    @app.get("/dashboard")
+    def dashboard():
+        return render_template("index.html")
     @app.get("/")
     def home():
         return {
