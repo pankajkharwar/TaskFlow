@@ -141,7 +141,7 @@ function showAuthScreen(message = "", isSuccess = false) {
                 </div>
 
                 <footer class="auth-visual-footer">
-                    TASKFLOW · BUILT FOR CLARITY
+                    TASKFLOW · CREATED BY PANKAJ KHARWAR
                 </footer>
             </section>
 
